@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101512" />
+    <meta name="description" content="Pilote sua nave e abra caminho entre os meteoros." />
+    <title>Orbit Breaker | Arcade espacial</title>
+  </head>
+  <body>
+    <main class="arcade" aria-label="Jogo Orbit Breaker">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="Orbit Breaker início">
+          <span class="brand-mark" aria-hidden="true">OB</span>
+          <span>ORBIT<span class="brand-slash">/</span>BREAKER</span>
+        </a>
+        <div class="status-label"><span class="live-dot"></span> SETOR 07 <span class="status-divider">/</span> AO VIVO</div>
+        <button class="icon-button" id="pause-button" type="button" aria-label="Pausar jogo" title="Pausar (P)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14" /></svg>
+        </button>
+      </header>
+
+      <section class="game-layout" aria-label="Área de jogo">
+        <aside class="side-rail side-rail-left" aria-label="Pontuação">
+          <span class="rail-label">PONTOS</span>
+          <strong class="rail-value" id="score">000000</strong>
+          <span class="rail-caption">MELHOR <b id="best-score">000000</b></span>
+        </aside>
+
+        <div class="game-frame">
+          <div class="game-meta">
+            <div class="meta-group"><span class="meta-label">MISSÃO</span><strong id="wave">01</strong></div>
+            <div class="meta-center"><span class="signal-bars"><i></i><i></i><i></i><i></i></span> TRANSMISSÃO ESTÁVEL</div>
+            <div class="meta-group meta-lives"><span class="meta-label">CASCO</span><strong id="lives">◆ ◆ ◆</strong></div>
+          </div>
+
+          <div class="playfield" id="playfield">
+            <div id="game" aria-label="Campo de jogo espacial"></div>
+            <div class="scanline" aria-hidden="true"></div>
+
+            <section class="launch-screen" id="overlay" aria-live="polite">
+              <div class="launch-content">
+                <p class="eyebrow"><span class="eyebrow-line"></span> ARQUIVO DE VOO 07-A</p>
+                <h1 id="overlay-title">ESCOLHA SUA<br /><span>NAVE.</span></h1>
+                <p class="launch-copy" id="overlay-copy">Três pilotos. Três maneiras de sobreviver.<br />Escolha sua nave e prepare-se para decolar.</p>
+                <div class="ship-options" id="ship-options" role="group" aria-label="Selecione uma nave"></div>
+                <div class="overlay-actions">
+                  <button class="launch-button" id="start-button" type="button">
+                    <span id="start-label">LANÇAR VETOR</span>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
+                  </button>
+                  <button class="lobby-button" id="lobby-button" type="button" hidden>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m7 7-7-7 7-7" /></svg>
+                    VOLTAR AO LOBBY
+                  </button>
+                </div>
+                <p class="keyboard-hint"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> PILOTAR <span>·</span> <kbd>ESPAÇO</kbd> DISPARAR <span>·</span> <kbd>E</kbd> HABILIDADE</p>
+              </div>
+              <div class="overlay-orbit orbit-one" aria-hidden="true"></div>
+              <div class="overlay-orbit orbit-two" aria-hidden="true"></div>
+              <div class="overlay-crosshair" aria-hidden="true">+</div>
+            </section>
+
+            <div class="touch-controls" aria-label="Controles de toque">
+              <div class="touch-cluster movement-cluster">
+                <button type="button" data-control="left" aria-label="Virar à esquerda">↶</button>
+                <button type="button" data-control="thrust" aria-label="Acelerar">▲</button>
+                <button type="button" data-control="right" aria-label="Virar à direita">↷</button>
+              </div>
+              <div class="fire-cluster">
+                <button class="ability-control" type="button" data-control="ability" aria-label="Usar habilidade da nave">E</button>
+                <button class="fire-control" type="button" data-control="fire" aria-label="Disparar">FIRE</button>
+              </div>
+            </div>
+          </div>
+
+          <footer class="game-footer">
+            <span><i class="footer-dot"></i> <span id="footer-message">AGUARDANDO PILOTO</span></span>
+            <span class="footer-tip">CADA METEORO CONTA</span>
+          </footer>
+        </div>
+
+        <aside class="side-rail side-rail-right" aria-label="Controles">
+          <span class="rail-label">CONTROLES</span>
+          <div class="control-row"><kbd>W</kbd><span>ACELERAR</span></div>
+          <div class="control-row"><kbd>A</kbd><kbd>D</kbd><span>GIRAR</span></div>
+          <div class="control-row"><kbd>␣</kbd><span>DISPARAR</span></div>
+          <div class="rail-rule"></div>
+          <span class="rail-caption">TAMBÉM FUNCIONA<br />NO TOQUE</span>
+        </aside>
+      </section>
+
+      <footer class="page-footer"><span>ESTAÇÃO DE DEFESA ORBITAL <b>·</b> 2189</span><span>FICA FRIO. MIRA FIRME.</span></footer>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

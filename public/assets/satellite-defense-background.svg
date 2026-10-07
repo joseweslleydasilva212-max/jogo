@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 586 329" preserveAspectRatio="xMidYMid slice" shape-rendering="crispEdges">
+  <defs>
+    <radialGradient id="space" cx="50%" cy="50%" r="80%">
+      <stop offset="0" stop-color="#031b21"/>
+      <stop offset="1" stop-color="#000b10"/>
+    </radialGradient>
+    <linearGradient id="ocean" x1="0" y1="0" x2=".6" y2="1">
+      <stop offset="0" stop-color="#087b80"/>
+      <stop offset=".45" stop-color="#07536c"/>
+      <stop offset="1" stop-color="#092a4a"/>
+    </linearGradient>
+    <radialGradient id="moonlight" cx="48%" cy="43%" r="60%">
+      <stop offset="0" stop-color="#c5fff4"/>
+      <stop offset=".48" stop-color="#67eadd"/>
+      <stop offset=".82" stop-color="#18a8a8"/>
+      <stop offset="1" stop-color="#075a70"/>
+    </radialGradient>
+    <radialGradient id="small-world" cx="40%" cy="30%" r="75%">
+      <stop offset="0" stop-color="#153b45"/>
+      <stop offset="1" stop-color="#07505b"/>
+    </radialGradient>
+    <pattern id="sea-pixels" width="32" height="24" patternUnits="userSpaceOnUse">
+      <path d="M2 4h8v4H2zm17 3h9v4h-9zM7 17h13v4H7z" fill="#0e3b60" opacity=".5"/>
+      <path d="M23 16h6v3h-6zM12 11h5v3h-5z" fill="#1ba8a2" opacity=".33"/>
+    </pattern>
+    <clipPath id="world-clip"><circle cx="138" cy="900" r="733"/></clipPath>
+    <clipPath id="small-world-clip"><circle cx="231" cy="68" r="62"/></clipPath>
+    <clipPath id="moon-clip"><circle cx="435" cy="91" r="67"/></clipPath>
+    <filter id="moon-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+  <rect width="586" height="329" fill="url(#space)"/>
+  <g fill="#12344e" opacity=".38">
+    <path d="M0 138h54v4h28v4h34v4h34v4h38v4h34v4h48v4h35v4H0z"/>
+    <path d="M0 158h62v4h40v4h39v4h38v4h32v4h28v4H0z"/>
+  </g>
+  <circle cx="231" cy="68" r="67" fill="#087b7b" opacity=".42"/>
+  <circle cx="231" cy="68" r="62" fill="url(#small-world)" stroke="#078b89" stroke-width="5"/>
+  <g clip-path="url(#small-world-clip)" fill="#061f32" opacity=".72">
+    <path d="M181 27h15v8h-8v9h-12v-8h5zm27 7h13v7h-8v8h-12v-7h7zm24-20h10v8h-10zm9 39h14v8h-7v8h-13v-9h6zM194 76h19v8h-11v9h-14v-8h6zm37 13h11v7h-11zM173 94h10v8h-10z"/>
+    <rect x="207" y="55" width="8" height="5" fill="#0b3843"/>
+    <rect x="246" y="25" width="9" height="6" fill="#0b3843"/>
+  </g>
+  <circle cx="280" cy="141" r="16" fill="#071b71" stroke="#1243c1" stroke-width="4"/>
+  <circle cx="435" cy="91" r="83" fill="#2df2dc" opacity=".36" filter="url(#moon-glow)"/>
+  <circle cx="435" cy="91" r="72" fill="#073746"/>
+  <circle cx="435" cy="91" r="67" fill="url(#moonlight)" stroke="#27d5cc" stroke-width="5"/>
+  <g clip-path="url(#moon-clip)">
+    <path d="M385 48h11v9h-7v9h-9v-8h5zm19-17h8v7h-8zm26 1h12v8h-7v9h-10v-8h5zm21 8h11v7h-6v7h-10v-7h5zM405 70h9v7h-9zm16-7h8v8h-8zm14 11h13v7h-7v8h-12v-8h6zm19-5h10v8h-10zm-60 24h13v8h-8v9h-10v-8h5zm22 4h10v7h-10zm23 7h14v8h-8v8h-12v-8h6zm22 2h12v8h-12zm-46 19h9v7h-9zm25 7h12v7h-12z" fill="#b9fff4" opacity=".9"/>
+    <path d="M414 53h8v5h-8zm31-27h6v5h-6zm-9 62h8v5h-8zm25 32h7v5h-7z" fill="#e1fff5"/>
+  </g>
+  <circle cx="138" cy="900" r="733" fill="#074b5e" stroke="#0ac8c3" stroke-width="8"/>
+  <circle cx="138" cy="900" r="720" fill="url(#ocean)"/>
+  <g clip-path="url(#world-clip)">
+    <rect x="-600" y="150" width="1500" height="950" fill="url(#sea-pixels)"/>
+    <path d="M-30 210h35v-9h41v8h24v-11h32v8h27v-9h38v10h23v-7h32v12h26v-7h45v13h31v-4h54v16h45v18h38v-10h44v34h46v300H-30z" fill="#0ca79b" opacity=".9"/>
+    <path d="M-20 235h53v-10h42v9h30v-12h33v10h42v-8h31v11h28v-7h39v13h37v-5h31v16h44v14h44v25h40v260H-20z" fill="#087c8d" opacity=".95"/>
+    <path d="M-10 275h45v-8h40v9h26v-12h27v9h33v-7h42v13h29v-9h35v17h43v-6h42v19h34v25h38v220H-10z" fill="#075779"/>
+    <path d="M15 222h42v10H27v11H8v-9h7zm93 15h34v9h-23v8H96v-9h12zm79-14h29v8h-17v9h-23v-9h11zm104 29h33v9h-20v9h-20v-9h7zm-165 38h36v9h-24v10h-24v-9h12zm113-1h26v8h-17v9h-17v-8h8zm126 34h32v9h-23v11h-20v-9h11z" fill="#20b6a5" opacity=".9"/>
+    <path d="M-5 198h21v-7h27v9H20v8H-5zm67 21h19v8H62zm105 25h21v8h-21zm97-9h28v7h-19v8h-18v-7h9zm126 35h26v8h-18v9h-18v-8h10zm62 28h17v8h-17z" fill="#43d0b7" opacity=".62"/>
+    <g fill="#062c48" opacity=".75">
+      <rect x="20" y="255" width="27" height="8"/><rect x="74" y="282" width="19" height="7"/><rect x="135" y="261" width="32" height="8"/>
+      <rect x="201" y="286" width="24" height="7"/><rect x="273" y="274" width="29" height="8"/><rect x="342" y="303" width="31" height="8"/>
+      <rect x="415" y="321" width="38" height="8"/><rect x="498" y="334" width="34" height="8"/><rect x="553" y="352" width="42" height="9"/>
+    </g>
+  </g>
+  <g fill="#d8fff7">
+    <rect x="82" y="34" width="5" height="5"/><rect x="56" y="62" width="4" height="4"/><rect x="25" y="35" width="4" height="4"/>
+    <rect x="348" y="14" width="4" height="4"/><rect x="386" y="31" width="4" height="4"/><rect x="529" y="37" width="5" height="5"/>
+    <rect x="565" y="83" width="4" height="4"/><rect x="558" y="136" width="5" height="5"/><rect x="561" y="181" width="4" height="4"/>
+    <rect x="35" y="111" width="5" height="5"/><rect x="87" y="135" width="4" height="4"/><rect x="317" y="89" width="4" height="4"/>
+    <rect x="311" y="31" width="4" height="4"/><rect x="492" y="18" width="4" height="4"/><rect x="525" y="111" width="4" height="4"/>
+    <rect x="548" y="251" width="5" height="5"/><rect x="481" y="213" width="4" height="4"/>
+  </g>
+  <g fill="#36d9d0">
+    <path d="M81 33h4v-6h4v6h5v4h-5v6h-4v-6h-4z"/>
+    <path d="M347 13h3V8h4v5h4v3h-4v5h-4v-5h-3z"/>
+    <rect x="123" y="42" width="4" height="4"/><rect x="287" y="67" width="4" height="4"/><rect x="505" y="67" width="4" height="4"/>
+    <rect x="372" y="151" width="4" height="4"/><rect x="31" y="91" width="4" height="4"/>
+  </g>
+</svg>

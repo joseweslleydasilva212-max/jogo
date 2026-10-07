@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { OrbitScene, SHIP_IDS, SHIP_LOADOUTS, type ShipId } from './game';
+import { OrbitScene, SHIP_IDS, SHIP_LOADOUTS, type GameLevelId, type ShipId } from './game';
 import './style.css';
 
 const scoreElement = document.querySelector<HTMLElement>('#score')!;
@@ -15,15 +15,118 @@ const overlayTitle = document.querySelector<HTMLElement>('#overlay-title')!;
 const overlayCopy = document.querySelector<HTMLElement>('#overlay-copy')!;
 const pauseButton = document.querySelector<HTMLButtonElement>('#pause-button')!;
 const shipOptions = document.querySelector<HTMLElement>('#ship-options')!;
+const levelOptions = document.querySelector<HTMLElement>('#level-options')!;
 const abilityButton = document.querySelector<HTMLButtonElement>('.ability-control')!;
 const footerTip = document.querySelector<HTMLElement>('.footer-tip')!;
+const bestWaveElement = document.querySelector<HTMLElement>('#best-wave')!;
+const missionLabel = document.querySelector<HTMLElement>('#mission-label')!;
+const missionValue = document.querySelector<HTMLElement>('#mission-value')!;
+const missionProgress = document.querySelector<HTMLElement>('#mission-progress')!;
+const missionStrip = document.querySelector<HTMLElement>('#mission-strip')!;
+const soundButton = document.querySelector<HTMLButtonElement>('#sound-button')!;
+const musicButton = document.querySelector<HTMLButtonElement>('#music-button')!;
+const hapticsButton = document.querySelector<HTMLButtonElement>('#haptics-button')!;
+const skinPicker = document.querySelector<HTMLElement>('#skin-picker')!;
 
 const bestStorageKey = 'orbit-breaker-best';
+const bestWaveStorageKey = 'orbit-breaker-best-wave';
+const soundStorageKey = 'orbit-breaker-sound';
+const musicStorageKey = 'orbit-breaker-music';
+const hapticsStorageKey = 'orbit-breaker-haptics';
+const skinStorageKey = 'orbit-breaker-skin';
+const levelStorageKey = 'orbit-breaker-level';
+const savedLevel = localStorage.getItem(levelStorageKey);
 let bestScore = Number(localStorage.getItem(bestStorageKey) || 0);
+let bestWave = Number(localStorage.getItem(bestWaveStorageKey) || 1);
 let isPaused = false;
 let selectedShip: ShipId = 'vector';
+let selectedLevel: GameLevelId = savedLevel === 'boss-rush' || savedLevel === 'asteroid-classic' ? savedLevel : 'satellite-defense';
+let selectedSkin = localStorage.getItem(skinStorageKey) || 'standard';
+let soundEnabled = localStorage.getItem(soundStorageKey) !== 'false';
+let musicEnabled = localStorage.getItem(musicStorageKey) !== 'false';
+let hapticsEnabled = localStorage.getItem(hapticsStorageKey) === 'true';
+let activeRun = false;
+let audioContext: AudioContext | null = null;
+let musicTimer: number | undefined;
+let musicStep = 0;
+
+const getAudioContext = async () => {
+  if (!window.AudioContext) return null;
+  audioContext ??= new AudioContext();
+  if (audioContext.state === 'suspended') await audioContext.resume();
+  return audioContext;
+};
+
+const playTone = (frequency: number, duration: number, type: OscillatorType, volume: number) => {
+  void getAudioContext().then((context) => {
+    if (!context) return;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const now = context.currentTime;
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, now);
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + duration + 0.02);
+  });
+};
+
+const stopMusic = () => {
+  if (musicTimer !== undefined) window.clearInterval(musicTimer);
+  musicTimer = undefined;
+};
+
+const startMusic = () => {
+  if (!musicEnabled || !activeRun || isPaused || musicTimer !== undefined) return;
+  const notes = [110, 164.81, 220, 164.81, 130.81, 196, 261.63, 196];
+  musicTimer = window.setInterval(() => {
+    playTone(notes[musicStep % notes.length], 0.32, 'triangle', 0.018);
+    musicStep += 1;
+  }, 420);
+};
+
+const refreshAudioButtons = () => {
+  soundButton.classList.toggle('is-active', soundEnabled);
+  soundButton.setAttribute('aria-pressed', String(soundEnabled));
+  soundButton.setAttribute('aria-label', `${soundEnabled ? 'Desativar' : 'Ativar'} efeitos sonoros`);
+  musicButton.classList.toggle('is-active', musicEnabled);
+  musicButton.setAttribute('aria-pressed', String(musicEnabled));
+  musicButton.setAttribute('aria-label', `${musicEnabled ? 'Desativar' : 'Ativar'} música`);
+  hapticsButton.classList.toggle('is-active', hapticsEnabled);
+  hapticsButton.setAttribute('aria-pressed', String(hapticsEnabled));
+  hapticsButton.setAttribute('aria-label', `${hapticsEnabled ? 'Desativar' : 'Ativar'} vibração`);
+};
+
+const refreshSkinOptions = () => {
+  if (!['standard', 'solar', 'plasma'].includes(selectedSkin)) selectedSkin = 'standard';
+  for (const swatch of skinPicker.querySelectorAll<HTMLButtonElement>('.skin-swatch')) {
+    const skin = swatch.dataset.skin || 'standard';
+    const unlocked = skin === 'standard' || (skin === 'solar' && bestWave >= 5) || (skin === 'plasma' && bestWave >= 10);
+    swatch.disabled = !unlocked;
+    swatch.setAttribute('aria-pressed', String(skin === selectedSkin));
+    swatch.title = unlocked ? swatch.getAttribute('aria-label') || skin : `${swatch.getAttribute('aria-label')} · bloqueada`;
+  }
+  localStorage.setItem(skinStorageKey, selectedSkin);
+};
+
+const recordWave = (wave: number) => {
+  if (wave <= bestWave) return;
+  bestWave = wave;
+  localStorage.setItem(bestWaveStorageKey, String(bestWave));
+  bestWaveElement.textContent = String(bestWave).padStart(2, '0');
+  refreshSkinOptions();
+};
 
 bestElement.textContent = String(bestScore).padStart(6, '0');
+bestWaveElement.textContent = String(bestWave).padStart(2, '0');
+refreshAudioButtons();
+refreshSkinOptions();
+for (const option of levelOptions.querySelectorAll<HTMLButtonElement>('.level-option')) {
+  option.setAttribute('aria-pressed', String(option.dataset.level === selectedLevel));
+}
 
 shipOptions.innerHTML = SHIP_IDS.map((shipId) => {
   const ship = SHIP_LOADOUTS[shipId];
@@ -66,6 +169,24 @@ for (const option of shipOptions.querySelectorAll<HTMLButtonElement>('.ship-opti
   });
 }
 
+for (const option of levelOptions.querySelectorAll<HTMLButtonElement>('.level-option')) {
+  option.addEventListener('click', () => {
+    selectedLevel = option.dataset.level as GameLevelId;
+    localStorage.setItem(levelStorageKey, selectedLevel);
+    for (const sibling of levelOptions.querySelectorAll<HTMLButtonElement>('.level-option')) {
+      sibling.setAttribute('aria-pressed', String(sibling === option));
+    }
+  });
+}
+
+for (const swatch of skinPicker.querySelectorAll<HTMLButtonElement>('.skin-swatch')) {
+  swatch.addEventListener('click', () => {
+    if (swatch.disabled) return;
+    selectedSkin = swatch.dataset.skin || 'standard';
+    refreshSkinOptions();
+  });
+}
+
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
@@ -90,6 +211,7 @@ window.addEventListener('orbit:status', (event) => {
   livesElement.textContent = `${'◆ '.repeat(detail.lives).trim()}${detail.lives === 0 ? '—' : ''}`;
   waveElement.textContent = String(detail.wave).padStart(2, '0');
   footerMessage.textContent = detail.state;
+  recordWave(detail.wave);
 
   if (detail.score > bestScore) {
     bestScore = detail.score;
@@ -99,14 +221,16 @@ window.addEventListener('orbit:status', (event) => {
 });
 
 window.addEventListener('orbit:overlay', (event) => {
-  const detail = (event as CustomEvent<{ visible: boolean; title: string; copy: string; button: string; showShips?: boolean; showLobbyButton?: boolean }>).detail;
+  const detail = (event as CustomEvent<{ visible: boolean; title: string; copy: string; button: string; showLevels?: boolean; showShips?: boolean; showLobbyButton?: boolean }>).detail;
   overlayTitle.innerHTML = detail.title;
   overlayCopy.innerHTML = detail.copy;
   startLabel.textContent = detail.button;
   overlay.classList.toggle('is-hidden', !detail.visible);
+  levelOptions.hidden = !detail.showLevels;
   shipOptions.hidden = !detail.showShips;
   lobbyButton.hidden = !detail.showLobbyButton;
   overlay.classList.toggle('has-ship-selection', Boolean(detail.showShips));
+  skinPicker.hidden = !detail.showShips;
 });
 
 window.addEventListener('orbit:pause-state', (event) => {
@@ -114,11 +238,101 @@ window.addEventListener('orbit:pause-state', (event) => {
   pauseButton.setAttribute('aria-label', isPaused ? 'Retomar jogo' : 'Pausar jogo');
   pauseButton.title = isPaused ? 'Retomar (P)' : 'Pausar (P)';
   pauseButton.classList.toggle('is-active', isPaused);
+  if (isPaused) stopMusic();
+  else startMusic();
 });
 
-startButton.addEventListener('click', () => window.dispatchEvent(new CustomEvent('orbit:start', { detail: { ship: selectedShip } })));
+startButton.addEventListener('click', () => {
+  activeRun = true;
+  void getAudioContext();
+  window.dispatchEvent(new CustomEvent('orbit:start', { detail: { level: selectedLevel, ship: selectedShip, skin: selectedSkin } }));
+  startMusic();
+});
 lobbyButton.addEventListener('click', () => window.dispatchEvent(new Event('orbit:return-lobby')));
 pauseButton.addEventListener('click', () => window.dispatchEvent(new Event('orbit:toggle-pause')));
+
+soundButton.addEventListener('click', () => {
+  soundEnabled = !soundEnabled;
+  localStorage.setItem(soundStorageKey, String(soundEnabled));
+  refreshAudioButtons();
+});
+musicButton.addEventListener('click', () => {
+  musicEnabled = !musicEnabled;
+  localStorage.setItem(musicStorageKey, String(musicEnabled));
+  if (musicEnabled) startMusic();
+  else stopMusic();
+  refreshAudioButtons();
+});
+hapticsButton.addEventListener('click', () => {
+  hapticsEnabled = !hapticsEnabled;
+  localStorage.setItem(hapticsStorageKey, String(hapticsEnabled));
+  refreshAudioButtons();
+});
+
+window.addEventListener('orbit:sound', (event) => {
+  const sound = (event as CustomEvent<{ sound: string }>).detail.sound;
+  if (!soundEnabled) return;
+  const tones: Record<string, [number, number, OscillatorType, number]> = {
+    shot: [620, 0.055, 'square', 0.012],
+    hit: [180, 0.09, 'sawtooth', 0.035],
+    explosion: [82, 0.2, 'triangle', 0.045],
+    damage: [105, 0.25, 'sawtooth', 0.06],
+    bossDefeat: [240, 0.36, 'triangle', 0.07],
+  };
+  const tone = tones[sound];
+  if (tone) playTone(...tone);
+  if (sound === 'bossDefeat') window.setTimeout(() => playTone(360, 0.42, 'triangle', 0.055), 120);
+  if (sound === 'damage' && hapticsEnabled) navigator.vibrate?.(65);
+});
+
+window.addEventListener('orbit:mission', (event) => {
+  const detail = (event as CustomEvent<{ label: string; progress: number; type: string }>).detail;
+  missionLabel.textContent = detail.label;
+  missionProgress.style.width = `${detail.progress * 100}%`;
+  missionStrip.classList.toggle('is-boss', detail.type === 'boss');
+});
+
+window.addEventListener('orbit:boss-status', (event) => {
+  const detail = (event as CustomEvent<{ visible: boolean; health: number; maxHealth: number }>).detail;
+  if (!detail.visible) {
+    missionStrip.classList.remove('is-boss');
+    missionValue.textContent = '';
+    return;
+  }
+  missionStrip.classList.add('is-boss');
+  missionLabel.textContent = 'CHEFE';
+  missionValue.textContent = `${detail.health}/${detail.maxHealth}`;
+  missionProgress.style.width = `${(detail.health / detail.maxHealth) * 100}%`;
+});
+
+window.addEventListener('orbit:satellite-status', (event) => {
+  const detail = (event as CustomEvent<{ active: boolean; health: number; maxHealth: number }>).detail;
+  if (!detail.active) {
+    missionStrip.classList.remove('is-satellite');
+    missionValue.textContent = '';
+    return;
+  }
+  missionStrip.classList.remove('is-boss');
+  missionStrip.classList.add('is-satellite');
+  missionLabel.textContent = 'PROTEJA O SATÉLITE';
+  missionValue.textContent = `${detail.health}%`;
+  missionProgress.style.width = `${(detail.health / detail.maxHealth) * 100}%`;
+});
+
+window.addEventListener('orbit:run-ended', (event) => {
+  const detail = (event as CustomEvent<{ score: number; wave: number; durationMs: number }>).detail;
+  recordWave(detail.wave);
+  activeRun = false;
+  stopMusic();
+});
+
+window.addEventListener('orbit:status', (event) => {
+  const detail = (event as CustomEvent<{ state: string }>).detail;
+  if (detail.state === 'AGUARDANDO PILOTO') {
+    activeRun = false;
+    stopMusic();
+  }
+});
 
 window.addEventListener('orbit:ability-status', (event) => {
   const detail = (event as CustomEvent<{ ready: boolean; label: string; remaining: number }>).detail;

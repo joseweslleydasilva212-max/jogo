@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 
 type TouchControl = 'left' | 'right' | 'thrust' | 'fire' | 'ability';
+type MissionType = 'clear' | 'survive' | 'boss';
+export type GameLevelId = 'satellite-defense' | 'boss-rush' | 'asteroid-classic';
 export type ShipId = 'vector' | 'bastion' | 'phantom';
 
 export const SHIP_IDS: ShipId[] = ['vector', 'bastion', 'phantom'];
@@ -13,13 +15,17 @@ export const SHIP_LOADOUTS = {
 
 export class OrbitScene extends Phaser.Scene {
   private ship!: Phaser.Physics.Arcade.Sprite;
+  private satellite!: Phaser.GameObjects.Image;
+  private satelliteCollider!: Phaser.Physics.Arcade.Sprite;
   private shieldAura!: Phaser.GameObjects.Arc;
   private rocks!: Phaser.Physics.Arcade.Group;
   private bullets!: Phaser.Physics.Arcade.Group;
+  private enemyShots!: Phaser.Physics.Arcade.Group;
   private aliens!: Phaser.Physics.Arcade.Group;
   private stars!: Phaser.GameObjects.Group;
   private spaceBackdrop!: Phaser.GameObjects.Graphics;
   private nebulaLayer!: Phaser.GameObjects.Graphics;
+  private satelliteBackdrop!: Phaser.GameObjects.Image;
   private planets!: Phaser.GameObjects.Image[];
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
@@ -32,6 +38,9 @@ export class OrbitScene extends Phaser.Scene {
   private lastShotAt = 0;
   private touch = new Set<TouchControl>();
   private shipId: ShipId = 'vector';
+  private levelId: GameLevelId = 'satellite-defense';
+  private satelliteHealth = 100;
+  private satelliteInvulnerableUntil = 0;
   private abilityTouchWasDown = false;
   private abilityReady = true;
   private nextAbilityAt = 0;
@@ -40,24 +49,43 @@ export class OrbitScene extends Phaser.Scene {
   private shieldUntil = 0;
   private nextAlienSpawnAt = 0;
   private lastAbilitySecondsRemaining = -1;
+  private nextBossShotAt = 0;
+  private missionType: MissionType = 'clear';
+  private missionUntil = 0;
+  private missionSecondsRemaining = -1;
+  private runStartedAt = 0;
 
   constructor() {
     super('OrbitScene');
+  }
+
+  preload() {
+    this.load.svg('satellite-defense-bg', '/assets/satellite-defense-background.svg', { width: 1600, height: 900 });
+    this.load.svg('satellite-sprite', '/assets/satellite-sprite.svg', { width: 512, height: 512 });
   }
 
   create() {
     this.physics.world.setBounds(0, 0, this.scale.width, this.scale.height);
     this.makeTextures();
     this.createStars();
+    this.satelliteBackdrop = this.add.image(this.scale.width / 2, this.scale.height / 2, 'satellite-defense-bg').setDepth(-11).setVisible(false);
+    this.layoutSatelliteBackground(this.scale.width, this.scale.height);
     this.ship = this.physics.add.sprite(this.scale.width / 2, this.scale.height / 2, 'ship-vector');
     this.ship.setCircle(12, 8, 8).setDamping(true).setDrag(0.96).setMaxVelocity(300).setCollideWorldBounds(false);
     this.ship.setActive(false).setVisible(false);
+    this.satellite = this.add.image(this.scale.width / 2, this.scale.height / 2, 'satellite-sprite')
+      .setDisplaySize(128, 128).setDepth(2.8).setVisible(false).setActive(false);
+    this.satelliteCollider = this.physics.add.sprite(this.scale.width / 2, this.scale.height / 2, 'satellite-hitbox');
+    this.satelliteCollider.setDisplaySize(64, 64).setVisible(false).setActive(false).setImmovable(true);
+    this.satelliteCollider.setCircle(24, 8, 8);
+    (this.satelliteCollider.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
     this.shieldAura = this.add.circle(0, 0, 34, 0x72e8d0, 0.16).setStrokeStyle(2, 0x8affea, 0.85).setDepth(1).setVisible(false);
     this.add.graphics().setName('engine-flame').setDepth(2);
     this.ship.setDepth(3);
 
     this.rocks = this.physics.add.group({ runChildUpdate: false });
     this.bullets = this.physics.add.group({ defaultKey: 'bullet', maxSize: 24 });
+    this.enemyShots = this.physics.add.group({ defaultKey: 'bullet-vector', maxSize: 12 });
     this.aliens = this.physics.add.group({ defaultKey: 'alien-ufo', maxSize: 1, runChildUpdate: false });
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.keys = this.input.keyboard!.addKeys('W,A,S,D,SPACE,P,E') as Record<string, Phaser.Input.Keyboard.Key>;
@@ -66,10 +94,15 @@ export class OrbitScene extends Phaser.Scene {
     this.physics.add.overlap(this.bullets, this.aliens, this.hitAlien as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback, undefined, this);
     this.physics.add.overlap(this.ship, this.rocks, this.shipHit as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback, undefined, this);
     this.physics.add.overlap(this.ship, this.aliens, this.shipHit as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback, undefined, this);
+    this.physics.add.overlap(this.ship, this.enemyShots, this.hitBossShot as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback, undefined, this);
+    this.physics.add.overlap(this.rocks, this.satelliteCollider, this.rockHitsSatellite as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback, undefined, this);
     this.scale.on('resize', (size: Phaser.Structs.Size) => {
       this.physics.world.setBounds(0, 0, size.width, size.height);
       this.layoutSpaceBackground(size.width, size.height);
+      this.layoutSatelliteBackground(size.width, size.height);
       if (!this.started) this.ship.setPosition(size.width / 2, size.height / 2);
+      this.satellite.setPosition(size.width / 2, size.height / 2);
+      this.satelliteCollider.setPosition(size.width / 2, size.height / 2);
     });
 
     window.addEventListener('orbit:start', this.startGame);
@@ -78,9 +111,10 @@ export class OrbitScene extends Phaser.Scene {
     window.addEventListener('orbit:touch', this.handleTouch);
     window.dispatchEvent(new CustomEvent('orbit:overlay', { detail: {
       visible: true,
-      title: 'ESCOLHA SUA<br /><span>NAVE.</span>',
-      copy: 'Três pilotos. Três maneiras de sobreviver.<br />Escolha sua nave e prepare-se para decolar.',
+      title: 'ESCOLHA SUA<br /><span>MISSÃO.</span>',
+      copy: 'Escolha uma fase e prepare sua nave para decolar.',
       button: 'LANÇAR VETOR',
+      showLevels: true,
       showShips: true,
     } }));
     this.emitStatus('AGUARDANDO PILOTO');
@@ -94,7 +128,9 @@ export class OrbitScene extends Phaser.Scene {
     const width = this.scale.width;
     const height = this.scale.height;
     const shipBody = this.ship.body as Phaser.Physics.Arcade.Body;
-    if (time >= this.nextAlienSpawnAt && this.aliens.countActive(true) === 0) this.spawnAlien(time);
+    if (this.levelId === 'satellite-defense' && time >= this.nextAlienSpawnAt && this.aliens.countActive(true) === 0) this.spawnAlien(time);
+    const activeBoss = this.rocks.getChildren().find((item) => item.active && item.getData('boss')) as Phaser.Physics.Arcade.Sprite | undefined;
+    if (activeBoss && time >= this.nextBossShotAt) this.shootBoss(activeBoss, time);
     this.shieldAura.setPosition(this.ship.x, this.ship.y);
     const abilityTouchDown = this.touch.has('ability');
     if (Phaser.Input.Keyboard.JustDown(this.keys.E) || (abilityTouchDown && !this.abilityTouchWasDown)) this.activateAbility(time);
@@ -110,6 +146,18 @@ export class OrbitScene extends Phaser.Scene {
       } else {
         const remaining = Math.ceil((this.nextAbilityAt - time) / 1000);
         if (remaining !== this.lastAbilitySecondsRemaining) this.emitAbilityStatus(false, remaining);
+      }
+    }
+
+    if (this.missionType === 'survive') {
+      const remaining = Math.max(0, Math.ceil((this.missionUntil - time) / 1000));
+      if (remaining !== this.missionSecondsRemaining) {
+        this.missionSecondsRemaining = remaining;
+        this.emitMission(`SOBREVIVA À CHUVA DE METEOROS · ${remaining}s`, 1 - remaining / 30);
+      }
+      if (remaining === 0) {
+        this.rocks.clear(true, true);
+        this.missionType = 'clear';
       }
     }
 
@@ -170,7 +218,13 @@ export class OrbitScene extends Phaser.Scene {
     this.wrap(this.ship, width, height);
     for (const item of this.rocks.getChildren()) {
       const rock = item as Phaser.Physics.Arcade.Sprite;
-      if (rock.active) this.wrap(rock, width, height);
+      if (!rock.active) continue;
+      if (rock.getData('boss')) {
+        const phase = time * 0.0007;
+        (rock.body as Phaser.Physics.Arcade.Body).setVelocity(Math.cos(phase) * 44, 22 + Math.sin(phase) * 34);
+        rock.rotation += delta * 0.00015;
+      }
+      this.wrap(rock, width, height);
     }
     for (const item of this.bullets.getChildren()) {
       const bullet = item as Phaser.Physics.Arcade.Sprite;
@@ -180,6 +234,13 @@ export class OrbitScene extends Phaser.Scene {
         continue;
       }
       this.wrap(bullet, width, height);
+    }
+    for (const item of this.enemyShots.getChildren()) {
+      const shot = item as Phaser.Physics.Arcade.Sprite;
+      if (!shot.active) continue;
+      if (time >= (shot.getData('expiresAt') as number) || shot.x < -24 || shot.x > width + 24 || shot.y < -24 || shot.y > height + 24) {
+        shot.disableBody(true, true);
+      }
     }
     for (const child of this.aliens.getChildren()) {
       const alien = child as Phaser.Physics.Arcade.Sprite;
@@ -199,10 +260,10 @@ export class OrbitScene extends Phaser.Scene {
     if (this.invulnerableUntil > time) this.ship.setAlpha(Math.floor(time / 90) % 2 ? 0.28 : 1);
     else this.ship.setAlpha(1);
 
-    if (this.rocks.countActive(true) === 0) {
+    if (this.rocks.countActive(true) === 0 && this.missionType !== 'survive') {
       this.wave += 1;
       this.spawnWave();
-      this.emitStatus(`ONDA ${String(this.wave).padStart(2, '0')} — METEOROS DETECTADOS`);
+      this.emitStatus(`ONDA ${String(this.wave).padStart(2, '0')} — ${this.missionType === 'boss' ? 'CHEFE DETECTADO' : 'METEOROS DETECTADOS'}`);
     }
   }
 
@@ -454,6 +515,11 @@ export class OrbitScene extends Phaser.Scene {
       graphics.destroy();
     }
 
+    const satelliteHitbox = this.make.graphics({ x: 0, y: 0 });
+    satelliteHitbox.fillStyle(0xffffff, 1).fillRect(0, 0, 64, 64);
+    satelliteHitbox.generateTexture('satellite-hitbox', 64, 64);
+    satelliteHitbox.destroy();
+
     const ufo = this.make.graphics({ x: 0, y: 0 });
     const ufoPolygon = (coordinates: number[][], fillColor: number) => {
       const points = coordinates.map(([x, y]) => new Phaser.Geom.Point(x, y));
@@ -573,13 +639,31 @@ export class OrbitScene extends Phaser.Scene {
     }
   }
 
+  private layoutSatelliteBackground(width: number, height: number) {
+    if (!this.satelliteBackdrop) return;
+    const scale = Math.max(width / 1600, height / 900);
+    this.satelliteBackdrop.setPosition(width / 2, height / 2).setScale(scale);
+  }
+
+  private updateBackgroundForLevel() {
+    const useSatelliteBackground = this.levelId === 'satellite-defense';
+    this.spaceBackdrop.setVisible(!useSatelliteBackground);
+    this.nebulaLayer.setVisible(!useSatelliteBackground);
+    for (const planet of this.planets) planet.setVisible(!useSatelliteBackground);
+    this.satelliteBackdrop.setVisible(useSatelliteBackground);
+  }
+
   private startGame = (event: Event) => {
     if (this.paused) {
       this.togglePause();
       return;
     }
     this.score = 0;
-    const requestedShip = (event as CustomEvent<{ ship?: ShipId }>).detail?.ship;
+    this.runStartedAt = this.time.now;
+    const startOptions = (event as CustomEvent<{ level?: GameLevelId; ship?: ShipId; skin?: string }>).detail;
+    if (startOptions?.level === 'satellite-defense' || startOptions?.level === 'boss-rush' || startOptions?.level === 'asteroid-classic') this.levelId = startOptions.level;
+    this.updateBackgroundForLevel();
+    const requestedShip = startOptions?.ship;
     if (requestedShip && SHIP_IDS.includes(requestedShip)) this.shipId = requestedShip;
     this.lives = 3;
     this.wave = 1;
@@ -592,10 +676,16 @@ export class OrbitScene extends Phaser.Scene {
     this.shieldUntil = 0;
     this.lastShotAt = 0;
     this.lastAbilitySecondsRemaining = -1;
+    this.missionType = 'clear';
+    this.missionUntil = 0;
+    this.missionSecondsRemaining = -1;
+    this.satelliteHealth = 100;
+    this.satelliteInvulnerableUntil = 0;
     this.shieldAura.setVisible(false);
     this.abilityTouchWasDown = false;
     this.rocks.clear(true, true);
     this.bullets.clear(true, true);
+    this.enemyShots.clear(true, true);
     this.aliens.clear(true, true);
     this.nextAlienSpawnAt = this.time.now + Phaser.Math.Between(6000, 9000);
     const hull = this.shipId === 'bastion'
@@ -606,8 +696,19 @@ export class OrbitScene extends Phaser.Scene {
     this.ship.setTexture(`ship-${this.shipId}`)
       .setMaxVelocity(SHIP_LOADOUTS[this.shipId].maxSpeed)
       .setDisplaySize(hull.width, hull.height);
-    this.ship.enableBody(true, this.scale.width / 2, this.scale.height / 2, true, true);
+    const skinTints: Record<string, number> = { standard: 0xffffff, solar: 0xffcb70, plasma: 0x78d8ff };
+    this.ship.setTint(skinTints[startOptions?.skin ?? 'standard'] ?? skinTints.standard);
+    const shipStartX = this.scale.width / 2 + (this.levelId === 'satellite-defense' ? Math.min(96, this.scale.width * 0.22) : 0);
+    const shipStartY = this.scale.height / 2 + (this.levelId === 'satellite-defense' ? Math.min(64, this.scale.height * 0.18) : 0);
+    this.ship.enableBody(true, shipStartX, shipStartY, true, true);
     (this.ship.body as Phaser.Physics.Arcade.Body).setCircle(hull.radius, hull.offsetX, hull.offsetY);
+    this.satellite.setPosition(this.scale.width / 2, this.scale.height / 2)
+      .setActive(this.levelId === 'satellite-defense')
+      .setVisible(this.levelId === 'satellite-defense');
+    this.satelliteCollider.setPosition(this.scale.width / 2, this.scale.height / 2)
+      .setActive(this.levelId === 'satellite-defense');
+    (this.satelliteCollider.body as Phaser.Physics.Arcade.Body).enable = this.levelId === 'satellite-defense';
+    this.emitSatelliteStatus();
     this.ship.setRotation(-Math.PI / 2).setVelocity(0, 0).setAcceleration(0, 0).setAlpha(1);
     this.spawnWave();
     window.dispatchEvent(new CustomEvent('orbit:overlay', { detail: { visible: false, title: '', copy: '', button: '' } }));
@@ -626,6 +727,7 @@ export class OrbitScene extends Phaser.Scene {
         title: 'PAUSA<br /><span>ORBITAL.</span>',
         copy: 'Sua nave está segura por enquanto.<br />Respire. Depois, volte à missão.',
         button: 'RETOMAR MISSÃO',
+        showLevels: false,
         showShips: false,
         showLobbyButton: true,
       } }));
@@ -643,10 +745,15 @@ export class OrbitScene extends Phaser.Scene {
     this.score = 0;
     this.lives = 3;
     this.wave = 1;
+    this.missionType = 'clear';
     this.ship.disableBody(true, true);
     this.rocks.clear(true, true);
     this.bullets.clear(true, true);
+    this.enemyShots.clear(true, true);
     this.aliens.clear(true, true);
+    this.satellite.setVisible(false).setActive(false);
+    this.satelliteCollider.setVisible(false).setActive(false);
+    (this.satelliteCollider.body as Phaser.Physics.Arcade.Body).enable = false;
     this.touch.clear();
     this.abilityTouchWasDown = false;
     this.shieldUntil = 0;
@@ -655,9 +762,10 @@ export class OrbitScene extends Phaser.Scene {
     window.dispatchEvent(new CustomEvent('orbit:pause-state', { detail: false }));
     window.dispatchEvent(new CustomEvent('orbit:overlay', { detail: {
       visible: true,
-      title: 'ESCOLHA SUA<br /><span>NAVE.</span>',
-      copy: 'Três pilotos. Três maneiras de sobreviver.<br />Escolha sua nave e prepare-se para decolar.',
+      title: 'ESCOLHA SUA<br /><span>MISSÃO.</span>',
+      copy: 'Escolha uma fase e prepare sua nave para decolar.',
       button: `LANÇAR ${SHIP_LOADOUTS[this.shipId].name.toUpperCase()}`,
+      showLevels: true,
       showShips: true,
       showLobbyButton: false,
     } }));
@@ -671,8 +779,31 @@ export class OrbitScene extends Phaser.Scene {
   };
 
   private spawnWave() {
+    if (this.levelId === 'boss-rush' || (this.levelId === 'satellite-defense' && this.wave % 5 === 0)) {
+      this.spawnBoss();
+      return;
+    }
+    if (this.levelId === 'satellite-defense' && this.wave % 3 === 0) {
+      this.missionType = 'survive';
+      this.missionUntil = this.time.now + 30000;
+      this.missionSecondsRemaining = -1;
+      this.emitStatus('CHUVA DE METEOROS · 30s');
+    } else {
+      this.missionType = 'clear';
+      this.emitMission(this.levelId === 'satellite-defense' ? 'PROTEJA O SATÉLITE' : 'DESTRUA TODOS OS ASTEROIDES', this.levelId === 'satellite-defense' ? this.satelliteHealth / 100 : 0);
+    }
+    this.emitSatelliteStatus();
     const count = Math.min(4 + this.wave, 10);
     for (let index = 0; index < count; index += 1) {
+      if (this.levelId === 'satellite-defense') {
+        const edge = Phaser.Math.Between(0, 3);
+        const x = edge === 0 ? 0 : edge === 1 ? this.scale.width : Phaser.Math.Between(24, this.scale.width - 24);
+        const y = edge === 2 ? 0 : edge === 3 ? this.scale.height : Phaser.Math.Between(24, this.scale.height - 24);
+        const angle = Phaser.Math.Angle.Between(x, y, this.satellite.x, this.satellite.y);
+        const speed = (Phaser.Math.Between(36, 78) + this.wave * 4) * (1 + Math.min((this.wave - 1) * 0.035, 0.7));
+        this.addRock(x, y, 3, new Phaser.Math.Vector2(Math.cos(angle) * speed, Math.sin(angle) * speed));
+        continue;
+      }
       let x = 0;
       let y = 0;
       let attempts = 0;
@@ -687,6 +818,28 @@ export class OrbitScene extends Phaser.Scene {
       );
       this.addRock(x, y, 3);
     }
+  }
+
+  private spawnBoss() {
+    this.missionType = 'boss';
+    const boss = this.rocks.create(this.scale.width / 2, Math.max(70, this.scale.height * 0.24), 'rock-0') as Phaser.Physics.Arcade.Sprite;
+    const health = 8 + (this.levelId === 'boss-rush' ? this.wave : Math.floor(this.wave / 5)) * 2;
+    boss.setScale(2.25).setDepth(2).setData('tier', 4).setData('boss', true).setData('health', health).setData('maxHealth', health);
+    const body = boss.body as Phaser.Physics.Arcade.Body;
+    body.setCircle(52, 8, 8).setVelocity(Phaser.Math.Between(-48, 48), Phaser.Math.Between(28, 62));
+    this.nextBossShotAt = this.time.now + 900;
+    this.emitMission(`CHEFE · ${health} ACERTOS`, 1);
+    window.dispatchEvent(new CustomEvent('orbit:boss-status', { detail: { visible: true, health, maxHealth: health } }));
+  }
+
+  private shootBoss(boss: Phaser.Physics.Arcade.Sprite, time: number) {
+    const shot = this.enemyShots.get(boss.x, boss.y, 'bullet-vector') as Phaser.Physics.Arcade.Sprite | null;
+    if (!shot) return;
+    const angle = Phaser.Math.Angle.Between(boss.x, boss.y, this.ship.x, this.ship.y);
+    shot.enableBody(true, boss.x, boss.y, true, true).setTint(0xff665d).setDisplaySize(15, 15).setDepth(3);
+    shot.setData('expiresAt', time + 4000);
+    (shot.body as Phaser.Physics.Arcade.Body).setCircle(5, 4, 4).setVelocity(Math.cos(angle) * 165, Math.sin(angle) * 165);
+    this.nextBossShotAt = time + Math.max(720, 1500 - this.wave * 18);
   }
 
   private spawnAlien(time: number) {
@@ -731,7 +884,7 @@ export class OrbitScene extends Phaser.Scene {
     const body = rock.body as Phaser.Physics.Arcade.Body;
     body.setCircle(tier === 3 ? 23 : tier === 2 ? 16 : 10, 9, 9);
     const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-    const speed = Phaser.Math.Between(28, 74) + this.wave * 3;
+    const speed = (Phaser.Math.Between(28, 74) + this.wave * 3) * (1 + Math.min((this.wave - 1) * 0.035, 0.7));
     body.setVelocity(velocity?.x ?? Math.cos(angle) * speed, velocity?.y ?? Math.sin(angle) * speed);
   }
 
@@ -740,6 +893,7 @@ export class OrbitScene extends Phaser.Scene {
     const cooldown = this.overdriveActive ? 90 : loadout.shotDelay;
     if (time - this.lastShotAt < cooldown) return;
     this.lastShotAt = time;
+    window.dispatchEvent(new CustomEvent('orbit:sound', { detail: { sound: 'shot' } }));
     const spread = this.shipId === 'phantom' ? [-0.035, 0.035] : [0];
     for (const angleOffset of spread) {
       const angle = this.ship.rotation + angleOffset;
@@ -841,6 +995,26 @@ export class OrbitScene extends Phaser.Scene {
     if (!bullet.active || !rock.active) return;
     bullet.disableBody(true, true);
     const tier = rock.getData('tier') as number;
+    if (tier === 4) {
+      const health = (rock.getData('health') as number) - 1;
+      rock.setData('health', health).setTint(0xffc66d);
+      this.time.delayedCall(90, () => { if (rock.active) rock.clearTint(); });
+      window.dispatchEvent(new CustomEvent('orbit:boss-status', { detail: { visible: true, health, maxHealth: rock.getData('maxHealth') } }));
+      window.dispatchEvent(new CustomEvent('orbit:sound', { detail: { sound: health === 0 ? 'bossDefeat' : 'hit' } }));
+      if (health <= 0) {
+        const x = rock.x;
+        const y = rock.y;
+        rock.disableBody(true, true);
+        this.score += 1500;
+        this.playAbilityBurst(x, y, 0xffc66d, 5);
+        window.dispatchEvent(new CustomEvent('orbit:boss-status', { detail: { visible: false, health: 0, maxHealth: 1 } }));
+        if (this.levelId === 'satellite-defense') this.emitSatelliteStatus();
+        this.emitStatus('CHEFE DESTRUÍDO  +1500');
+      } else {
+        this.emitStatus(`CHEFE ATINGIDO · ${health} IMPACTOS RESTANTES`);
+      }
+      return;
+    }
     const x = rock.x;
     const y = rock.y;
     const rockVelocity = (rock.body as Phaser.Physics.Arcade.Body).velocity.clone();
@@ -865,6 +1039,7 @@ export class OrbitScene extends Phaser.Scene {
       });
     }
     this.score += tier === 3 ? 20 : tier === 2 ? 50 : 100;
+    window.dispatchEvent(new CustomEvent('orbit:sound', { detail: { sound: 'explosion' } }));
     if (tier > 1) {
       this.addRock(x, y, tier - 1, new Phaser.Math.Vector2(-rockVelocity.y * 0.7, rockVelocity.x * 0.7));
       this.addRock(x, y, tier - 1, new Phaser.Math.Vector2(rockVelocity.y * 0.7, -rockVelocity.x * 0.7));
@@ -881,6 +1056,7 @@ export class OrbitScene extends Phaser.Scene {
     const y = alien.y;
     alien.disableBody(true, true);
     this.score += 350;
+    window.dispatchEvent(new CustomEvent('orbit:sound', { detail: { sound: 'explosion' } }));
 
     const burst = this.add.circle(x, y, 12, 0xf2c75c, 0.22).setStrokeStyle(2, 0xffdf8c, 0.95).setDepth(4);
     this.tweens.add({ targets: burst, scale: 4, alpha: 0, duration: 440, ease: 'Cubic.easeOut', onComplete: () => burst.destroy() });
@@ -901,12 +1077,36 @@ export class OrbitScene extends Phaser.Scene {
     this.emitStatus('DISCO VOADOR DESTRUÍDO  +350');
   };
 
+  private rockHitsSatellite = (rockObject: Phaser.GameObjects.GameObject, _collider: Phaser.GameObjects.GameObject) => {
+    const rock = rockObject as Phaser.Physics.Arcade.Sprite;
+    if (this.levelId !== 'satellite-defense' || !this.started || !rock.active || !this.satellite.visible || this.satelliteInvulnerableUntil > this.time.now) return;
+    rock.disableBody(true, true);
+    this.satelliteHealth = Math.max(0, this.satelliteHealth - 25);
+    this.satelliteInvulnerableUntil = this.time.now + 450;
+    this.satellite.setActive(this.satelliteHealth > 0).setVisible(this.satelliteHealth > 0);
+    this.satellite.setTint(0xff7568);
+    this.time.delayedCall(180, () => { if (this.satellite.active) this.satellite.clearTint(); });
+    this.cameras.main.shake(180, 0.006);
+    window.dispatchEvent(new CustomEvent('orbit:sound', { detail: { sound: 'damage' } }));
+    this.emitSatelliteStatus();
+    this.emitStatus(`SATÉLITE ATINGIDO · ${this.satelliteHealth}%`);
+    if (this.satelliteHealth === 0) {
+      this.satelliteCollider.setActive(false);
+      (this.satelliteCollider.body as Phaser.Physics.Arcade.Body).enable = false;
+      this.endGame('O SATÉLITE FOI DESTRUÍDO.');
+    }
+  };
+
   private shipHit = (_ship: Phaser.GameObjects.GameObject, rock: Phaser.GameObjects.GameObject) => {
     if (!this.ship.active || this.invulnerableUntil > this.time.now) return;
     const asteroid = rock as Phaser.Physics.Arcade.Sprite;
     if (!asteroid.active) return;
     if (this.shipId === 'bastion' && this.shieldUntil > this.time.now) {
       asteroid.disableBody(true, true);
+      if (asteroid.getData('boss')) {
+        window.dispatchEvent(new CustomEvent('orbit:boss-status', { detail: { visible: false, health: 0, maxHealth: 1 } }));
+        if (this.levelId === 'satellite-defense') this.emitSatelliteStatus();
+      }
       this.shieldUntil = 0;
       this.shieldAura.setVisible(false);
       this.emitStatus('CAMPO DE FORÇA ABSORVEU O IMPACTO');
@@ -915,20 +1115,37 @@ export class OrbitScene extends Phaser.Scene {
     this.lives -= 1;
     this.invulnerableUntil = this.time.now + 1900;
     this.ship.setPosition(this.scale.width / 2, this.scale.height / 2).setVelocity(0, 0).setRotation(-Math.PI / 2);
+    this.cameras.main.shake(170, 0.009);
+    window.dispatchEvent(new CustomEvent('orbit:sound', { detail: { sound: 'damage' } }));
     this.emitStatus('IMPACTO — CASCO COMPROMETIDO');
     if (this.lives <= 0) this.endGame();
   };
 
-  private endGame() {
+  private hitBossShot = (ship: Phaser.GameObjects.GameObject, shotObject: Phaser.GameObjects.GameObject) => {
+    const shot = shotObject as Phaser.Physics.Arcade.Sprite;
+    if (!shot.active) return;
+    this.shipHit(ship, shot);
+    shot.disableBody(true, true);
+  };
+
+  private endGame(reason = 'A estação ainda precisa de você.') {
     this.started = false;
     this.ship.disableBody(true, true);
     this.aliens.clear(true, true);
+    this.enemyShots.clear(true, true);
     this.emitStatus('SINAL PERDIDO — FIM DE JOGO');
+    const durationMs = this.time.now - this.runStartedAt;
+    const durationSeconds = Math.floor(durationMs / 1000);
+    const durationLabel = `${Math.floor(durationSeconds / 60)}:${String(durationSeconds % 60).padStart(2, '0')}`;
+    window.dispatchEvent(new CustomEvent('orbit:run-ended', { detail: { score: this.score, wave: this.wave, durationMs } }));
+    window.dispatchEvent(new CustomEvent('orbit:boss-status', { detail: { visible: false, health: 0, maxHealth: 1 } }));
+    window.dispatchEvent(new CustomEvent('orbit:satellite-status', { detail: { active: false, health: this.satelliteHealth, maxHealth: 100 } }));
     window.dispatchEvent(new CustomEvent('orbit:overlay', { detail: {
       visible: true,
       title: 'FIM DE<br /><span>JOGO.</span>',
-      copy: `Pontuação final: <strong>${String(this.score).padStart(6, '0')}</strong><br />A estação ainda precisa de você.`,
+      copy: `Pontuação: <strong>${String(this.score).padStart(6, '0')}</strong><br />Onda ${String(this.wave).padStart(2, '0')} · Tempo ${durationLabel}<br />${reason}`,
       button: `TENTAR DE NOVO · ${SHIP_LOADOUTS[this.shipId].name.toUpperCase()}`,
+      showLevels: true,
       showShips: true,
     } }));
   }
@@ -942,7 +1159,15 @@ export class OrbitScene extends Phaser.Scene {
   }
 
   private emitStatus(state: string) {
-    window.dispatchEvent(new CustomEvent('orbit:status', { detail: { score: this.score, lives: this.lives, wave: this.wave, state } }));
+    window.dispatchEvent(new CustomEvent('orbit:status', { detail: { score: this.score, lives: this.lives, wave: this.wave, state, durationMs: this.time.now - this.runStartedAt } }));
+  }
+
+  private emitMission(label: string, progress: number) {
+    window.dispatchEvent(new CustomEvent('orbit:mission', { detail: { label, progress: Math.max(0, Math.min(1, progress)), type: this.missionType } }));
+  }
+
+  private emitSatelliteStatus() {
+    window.dispatchEvent(new CustomEvent('orbit:satellite-status', { detail: { active: this.levelId === 'satellite-defense', health: this.satelliteHealth, maxHealth: 100 } }));
   }
 
   private emitAbilityStatus(ready: boolean, remaining: number) {

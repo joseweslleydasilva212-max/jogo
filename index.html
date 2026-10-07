@@ -15,9 +15,20 @@
           <span>ORBIT<span class="brand-slash">/</span>BREAKER</span>
         </a>
         <div class="status-label"><span class="live-dot"></span> SETOR 07 <span class="status-divider">/</span> AO VIVO</div>
-        <button class="icon-button" id="pause-button" type="button" aria-label="Pausar jogo" title="Pausar (P)">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14" /></svg>
-        </button>
+        <div class="utility-controls">
+          <button class="icon-button" id="sound-button" type="button" aria-label="Ativar efeitos sonoros" aria-pressed="true" title="Efeitos sonoros">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6l-5 4H4Zm12-2a6 6 0 0 1 0 8m2-11a10 10 0 0 1 0 14" /></svg>
+          </button>
+          <button class="icon-button" id="music-button" type="button" aria-label="Ativar música" aria-pressed="true" title="Música">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13M9 8l12-2M9 18a3 2 0 1 1-3-2 3 2 0 0 1 3 2Zm12-2a3 2 0 1 1-3-2 3 2 0 0 1 3 2Z" /></svg>
+          </button>
+          <button class="icon-button" id="haptics-button" type="button" aria-label="Ativar vibração" aria-pressed="false" title="Vibração no celular">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v16H8zM4 8v8m16-8v8M2 10v4m20-4v4" /></svg>
+          </button>
+          <button class="icon-button" id="pause-button" type="button" aria-label="Pausar jogo" title="Pausar (P)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14" /></svg>
+          </button>
+        </div>
       </header>
 
       <section class="game-layout" aria-label="Área de jogo">
@@ -25,6 +36,7 @@
           <span class="rail-label">PONTOS</span>
           <strong class="rail-value" id="score">000000</strong>
           <span class="rail-caption">MELHOR <b id="best-score">000000</b></span>
+          <span class="rail-caption">ONDA MÁXIMA <b id="best-wave">01</b></span>
         </aside>
 
         <div class="game-frame">
@@ -34,6 +46,12 @@
             <div class="meta-group meta-lives"><span class="meta-label">CASCO</span><strong id="lives">◆ ◆ ◆</strong></div>
           </div>
 
+          <div class="mission-strip" id="mission-strip" aria-live="polite">
+            <span class="mission-label" id="mission-label">SELECIONE UMA FASE</span>
+            <span class="mission-value" id="mission-value"></span>
+            <span class="mission-track"><span id="mission-progress"></span></span>
+          </div>
+
           <div class="playfield" id="playfield">
             <div id="game" aria-label="Campo de jogo espacial"></div>
             <div class="scanline" aria-hidden="true"></div>
@@ -41,9 +59,32 @@
             <section class="launch-screen" id="overlay" aria-live="polite">
               <div class="launch-content">
                 <p class="eyebrow"><span class="eyebrow-line"></span> ARQUIVO DE VOO 07-A</p>
-                <h1 id="overlay-title">ESCOLHA SUA<br /><span>NAVE.</span></h1>
-                <p class="launch-copy" id="overlay-copy">Três pilotos. Três maneiras de sobreviver.<br />Escolha sua nave e prepare-se para decolar.</p>
+                <h1 id="overlay-title">ESCOLHA SUA<br /><span>MISSÃO.</span></h1>
+                <p class="launch-copy" id="overlay-copy">Escolha uma fase e prepare sua nave para decolar.</p>
+                <div class="level-options" id="level-options" role="group" aria-label="Selecione uma fase">
+                  <button class="level-option" type="button" data-level="satellite-defense" aria-pressed="true">
+                    <span class="level-index">FASE 01</span>
+                    <strong>DEFESA DO SATÉLITE</strong>
+                    <small>Proteja o satélite das ondas de meteoros.</small>
+                  </button>
+                  <button class="level-option" type="button" data-level="boss-rush" aria-pressed="false">
+                    <span class="level-index">FASE 02</span>
+                    <strong>CAÇA AOS CHEFES</strong>
+                    <small>Enfrente um chefe diferente em cada onda.</small>
+                  </button>
+                  <button class="level-option" type="button" data-level="asteroid-classic" aria-pressed="false">
+                    <span class="level-index">FASE 03</span>
+                    <strong>MODO CLÁSSICO</strong>
+                    <small>Destrua asteroides e avance pelas ondas.</small>
+                  </button>
+                </div>
                 <div class="ship-options" id="ship-options" role="group" aria-label="Selecione uma nave"></div>
+                <div class="skin-picker" id="skin-picker" role="group" aria-label="Cor da nave">
+                  <span>IDENTIFICAÇÃO</span>
+                  <button class="skin-swatch" type="button" data-skin="standard" aria-label="Cor padrão" title="Padrão" aria-pressed="true"><i></i></button>
+                  <button class="skin-swatch" type="button" data-skin="solar" aria-label="Cor solar, desbloqueada na onda 5" title="Solar · onda 5" aria-pressed="false"><i></i></button>
+                  <button class="skin-swatch" type="button" data-skin="plasma" aria-label="Cor plasma, desbloqueada na onda 10" title="Plasma · onda 10" aria-pressed="false"><i></i></button>
+                </div>
                 <div class="overlay-actions">
                   <button class="launch-button" id="start-button" type="button">
                     <span id="start-label">LANÇAR VETOR</span>

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" shape-rendering="crispEdges">
+  <defs>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a8f4f0"/>
+      <stop offset=".48" stop-color="#55bfd0"/>
+      <stop offset="1" stop-color="#2485a6"/>
+    </linearGradient>
+    <linearGradient id="hull" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a2ddd0"/>
+      <stop offset=".5" stop-color="#559c96"/>
+      <stop offset="1" stop-color="#285f68"/>
+    </linearGradient>
+    <g id="solar-panel">
+      <rect x="-46" y="-46" width="92" height="92" fill="#111824" stroke="#0b111c" stroke-width="11"/>
+      <rect x="-42" y="-42" width="84" height="84" fill="url(#panel)" stroke="#e5f7f1" stroke-width="5"/>
+      <path d="M-36 -2H36M-2 -36V36M-34 -20H34M-34 20H34M-20 -34V34M20 -34V34" fill="none" stroke="#b9f7ee" stroke-width="4" opacity=".9"/>
+      <path d="M-32 -32h18v7h-18zm45 0h18v7H13zM-32 25h18v7h-18zm45 0h18v7H13z" fill="#2788a6" opacity=".82"/>
+      <path d="M-40 -40h15v4h-15zm65 0h15v4H25zM-40 36h15v4h-15zm65 0h15v4H25z" fill="#f1fffa"/>
+    </g>
+  </defs>
+  <g stroke="#101722" stroke-linejoin="miter" stroke-linecap="square">
+    <path d="M105 105 154 154M200 200 222 222M290 290 319 319M370 370 411 411" fill="none" stroke="#18212b" stroke-width="20"/>
+    <path d="M105 105 154 154M200 200 222 222M290 290 319 319M370 370 411 411" fill="none" stroke="#d5e8e2" stroke-width="9"/>
+    <path d="M300 212 385 127 403 145 320 230" fill="#638c8b" stroke-width="8"/>
+    <path d="M311 208 389 130" fill="none" stroke="#d1ede4" stroke-width="5"/>
+    <path d="M388 132 408 61 431 58 470 99 465 123 403 151Z" fill="#151923" stroke-width="10"/>
+    <path d="M397 130 416 72 430 70 458 100 453 115 406 141Z" fill="#bc7087" stroke="#e1f3ed" stroke-width="5"/>
+    <path d="M407 139 453 111 460 120 415 153Z" fill="#8e4f6e" stroke-width="4"/>
+    <path d="M413 77 430 61 448 69 462 88 445 104Z" fill="#364a5a" stroke-width="7"/>
+    <path d="M426 68 437 55 453 58 465 70 462 87 449 95 434 88Z" fill="#e8bd66" stroke="#101722" stroke-width="8"/>
+    <path d="M438 61h14v8h-14zm-5 16h11v8h-11z" fill="#fff0aa" stroke="none"/>
+    <path d="M187 207 239 156 310 227 350 267 301 322 244 370 171 296 127 252Z" fill="#101722" stroke-width="12"/>
+    <path d="M194 208 242 166 302 226 339 266 296 311 243 359 139 254Z" fill="url(#hull)" stroke="#e5f5eb" stroke-width="6"/>
+    <path d="M208 205 247 173 290 217 320 249 280 290 241 328 196 283 164 252Z" fill="#73b7aa" stroke="#2b5964" stroke-width="5"/>
+    <path d="M213 220 251 182 280 211 246 247Z" fill="#a5ddd0"/>
+    <path d="M250 254 296 211 326 242 282 286Z" fill="#4e958f"/>
+    <path d="M175 278 220 323 194 349 150 304Z" fill="#427c7d"/>
+    <path d="M229 274 244 259 303 318 287 334Z" fill="#254d5c"/>
+    <path d="M156 255 175 236 188 249 169 269ZM303 301 320 284 334 298 316 316Z" fill="#eff9ef"/>
+    <path d="M150 301 174 325 161 340 137 316Z" fill="#101722" stroke="#e1eee8" stroke-width="5"/>
+    <path d="M150 308 171 329 160 339 140 318Z" fill="#b36e83"/>
+  </g>
+  <use href="#solar-panel" transform="translate(80 80) rotate(45)"/>
+  <use href="#solar-panel" transform="translate(174 174) rotate(45) scale(.94)"/>
+  <use href="#solar-panel" transform="translate(350 350) rotate(45) scale(.94)"/>
+  <use href="#solar-panel" transform="translate(430 430) rotate(45) scale(.9)"/>
+</svg>
